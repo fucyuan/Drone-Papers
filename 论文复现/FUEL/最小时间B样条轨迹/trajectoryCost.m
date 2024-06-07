@@ -32,13 +32,20 @@ function [cost, T, trajectory] = trajectoryCost(x, N_b, p_b, Delta_t_b, w_t, lam
     end
     % 边界状态约束成本 f_bs
     x0 = x(:,1); % 初始状态为控制点的第一个点
-    if N_b+1 > 4 % 确保有足够的控制点
-        x_next = x(:,2); % 下一个目标点为第四个控制点
-    else
-        x_next = x(:,end); % 如果控制点不够多，取最后一个点
-    end
+    x_next = x(:,4); % 下一个目标点为第四个控制点
+
+    % 初始速度和加速度
+    v0 = (x(:,2) - x(:,1)) / Delta_t_b;
+    a0 = (x(:,3) - 2*x(:,2) + x(:,1)) / (Delta_t_b^2);
+    
+    % 终点速度和加速度
+    v_end = (x(:,end) - x(:,end-1)) / Delta_t_b;
+    a_end = (x(:,end) - 2*x(:,end-1) + x(:,end-2)) / (Delta_t_b^2);
+
     f_bs = norm((x(:,1) + 4*x(:,2) + x(:,3))/6 - x0)^2 + ...
-            norm((x(:,end-2) + 4*x(:,end-1) + x(:,end))/6 - x_next)^2;
+           norm((v0 + v_end)/2 - v0)^2 + ...
+           norm(a0 - a0)^2 + ...
+           norm((x(:,end-2) + 4*x(:,end-1) + x(:,end))/6 - x_next)^2;
     
     % 总成本
     cost = f_s + w_t * T + lambda_c * f_c + lambda_d * (f_v + f_a) + lambda_bs * f_bs;
