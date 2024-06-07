@@ -110,27 +110,70 @@ $$ c_{rf}(\Xi) = t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) + w_c \cdot c_c(\mathb
 
 鉴于离散的视点，为了实现平滑的导航，需要连续的轨迹。我们的四旋翼轨迹规划基于一种方法[28]，该方法生成平滑、安全且动态可行的B样条轨迹。我们进一步优化B样条的所有参数，以便最小化总轨迹时间，使四旋翼飞行器能够充分利用其动态能力。
 
-由于四旋翼飞行器的动态特性是微分平坦的[19]，我们为平坦输出 \( \mathbf{x} \in (x, y, z, \xi) \) 规划轨迹。设 \( \mathbf{X}_{cb} = \{\mathbf{x}_{c,0}, \mathbf{x}_{c,1}, \cdots, \mathbf{x}_{c,N_b}\} \)，其中 \( \mathbf{x}_{c,i} = (\mathbf{p}_{c,i}, \xi_{c,i}) \) 是一个 \( p_b \) 次均匀B样条的 \( N_b + 1 \) 控制点， \( \Delta t_b \) 是节点间隔。我们找到在平滑性和总轨迹时间之间权衡的B样条，并满足安全性、动态可行性和边界状态约束。它可以表示为如下的优化问题：
+由于四旋翼飞行器的动态特性是微分平坦的[19]，我们为平坦输出 $( \mathbf{x} \in (x, y, z, \xi) )$ 规划轨迹。设 $( \mathbf{X}_{cb} = \{\mathbf{x}_{c,0}, \mathbf{x}_{c,1}, \cdots, \mathbf{x}_{c,N_b}\} )$，其中 $( \mathbf{x}_{c,i} = (\mathbf{p}_{c,i}, \xi_{c,i}) )$ 是一个 $( p_b )$ 次均匀B样条的 $( N_b + 1 )$ 控制点， $( \Delta t_b )$ 是节点间隔。我们找到在平滑性和总轨迹时间之间权衡的B样条，并满足安全性、动态可行性和边界状态约束。它可以表示为如下的优化问题：
 
-\[
+$$
 \arg \min_{\mathbf{x}_{c,b}, \Delta t_b} f_s + w_t T + \lambda_c f_c + \lambda_d (f_v + f_a) + \lambda_{bs} f_{bs}
-\]
+$$
 
-类似于[28]， \( f_s \) 是弹性带平滑成本：
+类似于[28]， $( f_s )$ 是弹性带平滑成本：
 
-\[
+$$
 f_s = \sum_{i=0}^{N_b-2} \mathbf{s}_i^T \mathbf{R}_s \mathbf{s}_i，\ \mathbf{s}_i = \mathbf{x}_{c,i+2} - 2\mathbf{x}_{c,i+1} + \mathbf{x}_{c,i}
-\]
+$$
 
-其中， \( \mathbf{R}_s \) 是惩罚矩阵：
+其中， $( \mathbf{R}_s )$ 是惩罚矩阵：
 
-\[
+$$
 \mathbf{R}_s = \begin{bmatrix}
 w_{s,p} \mathbf{I}_3 & 0 \\
-0^T & w_{s,\xi}
+0^T & w_{s,\xi} 
 \end{bmatrix}
-\]
+$$
 
+T 是总的轨迹时间，取决于 Δt_b 和 B 样条段的数量：
+$$ T = (N_b + 1 - p_b) \cdot \Delta t_b \quad \text{(10)} $$
+
+f_c, f_v 和 f_a 是确保安全性和动态可行性的惩罚项。给定以下函数：
+$$ 
+\mathcal{P}(\tau_1, \tau_2) = \begin{cases} 
+(\tau_1 - \tau_2)^2 & \tau_1 \le \tau_2 \\
+0 & \text{否则} 
+\end{cases} \quad \text{(11)} 
+$$
+
+f_c 计算如下：
+$$ 
+f_c = \sum_{i=0}^{N_b} \mathcal{P}(d(\mathbf{p}_{c,i}), d_{min}) \quad \text{(12)} 
+$$
+
+
+
+其中，$( d(\mathbf{p}_{c,i}) )$ 是点 $(\mathbf{p}_{c,i})$ 到最近障碍物的距离，可以从由映射模块维护的欧几里得符号距离场 (ESDF) 中获得。实际上，大于我们四旋翼半径的间隙（通常 $( d_{min} \ge 0.5 )$ 米）确保在复杂场景中的安全性。$( f_v )$ 和 $( f_a )$ 用于惩罚不可行的速度和加速度：
+
+$$ 
+f_v = \sum_{i=0}^{N_b-1} \left\{ \sum_{\mu \in \{x,y,z\}} \mathcal{P}(v_{max}, |\dot{p}_{c,i,\mu}|) + \mathcal{P}(\dot{\xi}_{max}, |\dot{\xi}_{c,i}|) \right\} \quad \text{(13)} 
+$$
+
+$$ 
+f_a = \sum_{i=0}^{N_b-2} \left\{ \sum_{\mu \in \{x,y,z\}} \mathcal{P}(a_{max}, |\ddot{p}_{c,i,\mu}|) + \mathcal{P}(\ddot{\xi}_{max}, |\ddot{\xi}_{c,i}|) \right\} \quad \text{(14)} 
+$$
+
+其中利用了导数的控制点：
+
+$$ \dot{\mathbf{x}}_{c,i} = \left[ \dot{p}_{c,i,x}, \dot{p}_{c,i,y}, \dot{p}_{c,i,z}, \dot{\xi}_{c,i} \right]^{\mathrm{T}} = \frac{\mathbf{x}_{c,i+1} - \mathbf{x}_{c,i}}{\Delta t_b} \quad \text{(15)} $$
+
+$$ \ddot{\mathbf{x}}_{c,i} = \left[ \ddot{p}_{c,i,x}, \ddot{p}_{c,i,y}, \ddot{p}_{c,i,z}, \ddot{\xi}_{c,i} \right]^{\mathrm{T}} = \frac{\mathbf{x}_{c,i+2} - 2\mathbf{x}_{c,i+1} + \mathbf{x}_{c,i}}{\Delta t_b^2} \quad \text{(16)} $$
+
+在方程12、13和14中，利用了B样条的凸包性质来有效地确保可行性。简要起见，我们建议读者参考[28]以获得更多详细信息。
+
+
+
+最后，我们将起始点的 0 到 2 阶导数设置为瞬时状态 $((\mathbf{x}_0, \dot{\mathbf{x}}_0, \ddot{\mathbf{x}}_0))$ 以确保平滑运动。终点的 0 阶导数也由下一个要访问的视点 $(\mathbf{x}_{\text{next}})$ 确定。在实现中，我们使用三次 B 样条，因此相关的代价为：
+
+$$ 
+f_{bs} = \left\| \frac{\mathbf{x}_{c,0} + 4\mathbf{x}_{c,1} + \mathbf{x}_{c,2}}{6} - \mathbf{x}_0 \right\|^2 + \left\| \frac{\dot{\mathbf{x}}_{c,0} + \dot{\mathbf{x}}_{c,1}}{2} - \dot{\mathbf{x}}_0 \right\|^2 + \left\| \ddot{\mathbf{x}}_{c,0} - \ddot{\mathbf{x}}_0 \right\|^2 + \left\| \frac{\mathbf{x}_{c,N_b-2} + 4\mathbf{x}_{c,N_b-1} + \mathbf{x}_{c,N_b}}{6} - \mathbf{x}_{\text{next}} \right\|^2 \quad \text{(17)}
+$$
 
 
 ## 系统结构图
@@ -215,7 +258,7 @@ w_{s,p} \mathbf{I}_3 & 0 \\
 
 5. **当前视点 (Current viewpoint)**：图中的绿色星星表示，作为优化路径的起点。
 
-6. **距离 \(R_{rf}\)**：表示当前视点与优化范围内视点之间的距离，展示了这些视点与当前位置的相对接近程度。
+6. **距离 $(R_{rf})$**：表示当前视点与优化范围内视点之间的距离，展示了这些视点与当前位置的相对接近程度。
 
 ### 过程解释：
 
@@ -223,11 +266,11 @@ w_{s,p} \mathbf{I}_3 & 0 \\
   
 - **视点优化**：为了提高探索效率，在全局巡航路径的一个截断段（如图中的黄色虚线圈）上，我们考虑更多的视点集合，使用图搜索方法进行优化。
   
-- **图搜索方法**：我们创建一个有向无环图 (DAG)，其中每个节点代表一个视点（当前视点 \(x_0\) 和每个簇中的视点 \(VP_i\)）。每个节点连接到与下一个簇相关的其他节点，形成可能路径的图。
+- **图搜索方法**：我们创建一个有向无环图 (DAG)，其中每个节点代表一个视点（当前视点 $(x_0)$ 和每个簇中的视点 $(VP_i)$）。每个节点连接到与下一个簇相关的其他节点，形成可能路径的图。
   
-- **路径优化**：利用Dijkstra算法搜索最优的局部巡航路径 \( (\Xi = \{x_{1,j1}, x_{2,j2}, \cdots , x_{N_{rf},jN_{rf}}\}) \)，使得下述公式中的成本最小化：
+- **路径优化**：利用Dijkstra算法搜索最优的局部巡航路径 $( (\Xi = \{x_{1,j1}, x_{2,j2}, \cdots , x_{N_{rf},jN_{rf}}\}) )$，使得下述公式中的成本最小化：
 
-\[ c_{rf}(\Xi) = t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) + w_c \cdot c_c(\mathbf{x}_{1,j_1}) + t_{lb}(\mathbf{x}_{N_{rf},j_{N_{rf}}}, \mathbf{x}_{N_{rf}+1,1}) + \sum_{k=1}^{N_{rf}-1} t_{lb}(\mathbf{x}_k, \mathbf{x}_{j_k}, \mathbf{x}_{k+1, j_{k+1}}) \]
+$$ c_{rf}(\Xi) = t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) + w_c \cdot c_c(\mathbf{x}_{1,j_1}) + t_{lb}(\mathbf{x}_{N_{rf},j_{N_{rf}}}, \mathbf{x}_{N_{rf}+1,1}) + \sum_{k=1}^{N_{rf}-1} t_{lb}(\mathbf{x}_k, \mathbf{x}_{j_k}, \mathbf{x}_{k+1, j_{k+1}}) $$
 
 - **优化结果**：通过这种方法，我们获得了一条更优化的局部巡航路径（蓝色曲线），能够提高探索效率并减少计算成本。
 
@@ -235,27 +278,27 @@ w_{s,p} \mathbf{I}_3 & 0 \\
 
 公式 (6) 详细解释如下：
 
-\[ c_{rf}(\Xi) = t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) + w_c \cdot c_c(\mathbf{x}_{1,j_1}) + t_{lb}(\mathbf{x}_{N_{rf},j_{N_{rf}}}, \mathbf{x}_{N_{rf}+1,1}) + \sum_{k=1}^{N_{rf}-1} t_{lb}(\mathbf{x}_k, \mathbf{x}_{j_k}, \mathbf{x}_{k+1, j_{k+1}}) \]
+$$ c_{rf}(\Xi) = t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) + w_c \cdot c_c(\mathbf{x}_{1,j_1}) + t_{lb}(\mathbf{x}_{N_{rf},j_{N_{rf}}}, \mathbf{x}_{N_{rf}+1,1}) + \sum_{k=1}^{N_{rf}-1} t_{lb}(\mathbf{x}_k, \mathbf{x}_{j_k}, \mathbf{x}_{k+1, j_{k+1}}) $$
 
-这个公式表示的是一个路径 \( \Xi \) 的总成本，其中包括了从起点到终点的一系列点间的时间下界和一致性成本。具体来说，这个公式的各个部分如下：
+这个公式表示的是一个路径 $( \Xi )$ 的总成本，其中包括了从起点到终点的一系列点间的时间下界和一致性成本。具体来说，这个公式的各个部分如下：
 
-1. **\( t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) \)**：
-   - 表示从起点 \( \mathbf{x}_0 \) 到第一个视点 \( \mathbf{x}_{1,j_1} \) 的时间下界 (lower bound)。
+1. **$( t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) )$**：
+   - 表示从起点 $( \mathbf{x}_0 )$ 到第一个视点 $( \mathbf{x}_{1,j_1} )$ 的时间下界 (lower bound)。
    - 这是路径的起始部分，计算从起点到第一个簇中的视点的成本。
 
-2. **\( w_c \cdot c_c(\mathbf{x}_{1,j_1}) \)**：
-   - \( w_c \) 是一个权重系数，用于平衡路径中的不同成本。
-   - \( c_c(\mathbf{x}_{1,j_1}) \) 是第一个视点 \( \mathbf{x}_{1,j_1} \) 的一致性成本 (consistency cost)。
+2. **$( w_c \cdot c_c(\mathbf{x}_{1,j_1}) )$**：
+   - $( w_c )$ 是一个权重系数，用于平衡路径中的不同成本。
+   - $( c_c(\mathbf{x}_{1,j_1}) )$ 是第一个视点 $( \mathbf{x}_{1,j_1} )$ 的一致性成本 (consistency cost)。
    - 这一部分表示路径选择中视点的一致性代价，确保选择的视点在路径上是合理和一致的。
 
-3. **\( t_{lb}(\mathbf{x}_{N_{rf},j_{N_{rf}}}, \mathbf{x}_{N_{rf}+1,1}) \)**：
-   - 表示从最后一个簇的最后一个视点 \( \mathbf{x}_{N_{rf},j_{N_{rf}}} \) 到路径终点 \( \mathbf{x}_{N_{rf}+1,1} \) 的时间下界。
+3. **$( t_{lb}(\mathbf{x}_{N_{rf},j_{N_{rf}}}, \mathbf{x}_{N_{rf}+1,1}) )$**：
+   - 表示从最后一个簇的最后一个视点 $( \mathbf{x}_{N_{rf},j_{N_{rf}}} )$ 到路径终点 $( \mathbf{x}_{N_{rf}+1,1} )$ 的时间下界。
    - 这是路径的结束部分，计算从最后一个簇中的视点到终点的成本。
 
-4. **\( \sum_{k=1}^{N_{rf}-1} t_{lb}(\mathbf{x}_k, \mathbf{x}_{j_k}, \mathbf{x}_{k+1, j_{k+1}}) \)**：
+4. **$( \sum_{k=1}^{N_{rf}-1} t_{lb}(\mathbf{x}_k, \mathbf{x}_{j_k}, \mathbf{x}_{k+1, j_{k+1}}) )$**：
    - 这是一个求和项，表示从第一个簇到最后一个簇之间每一对相邻簇中视点之间的时间下界的总和。
-   - \( k \) 是簇的索引，表示从第 \( k \) 个簇到第 \( k+1 \) 个簇之间的路径。
-   - \( \mathbf{x}_k \) 和 \( \mathbf{x}_{j_k} \) 表示第 \( k \) 个簇中的视点，\( \mathbf{x}_{k+1} \) 和 \( \mathbf{x}_{j_{k+1}} \) 表示第 \( k+1 \) 个簇中的视点。
+   - $( k )$ 是簇的索引，表示从第 $( k )$ 个簇到第 $( k+1 )$ 个簇之间的路径。
+   - $( \mathbf{x}_k )$ 和 $( \mathbf{x}_{j_k} )$ 表示第 $( k )$ 个簇中的视点，$( \mathbf{x}_{k+1} )$ 和 $( \mathbf{x}_{j_{k+1}} )$ 表示第 $( k+1 )$ 个簇中的视点。
    - 这一部分计算的是从一个簇到下一个簇的各个视点之间的时间成本。
 
 ### 总结
