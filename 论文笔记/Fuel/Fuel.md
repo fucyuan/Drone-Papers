@@ -310,3 +310,151 @@ $$ c_{rf}(\Xi) = t_{lb}(\mathbf{x}_0, \mathbf{x}_{1,j_1}) + w_c \cdot c_c(\mathb
 - 从最后一个簇到终点的时间成本。
 
 通过这些成本的总和，公式 (6) 旨在找到一条优化的路径，使得总成本最小化，从而提高路径选择的效率和一致性。
+
+## 轨迹
+
+### 轨迹规划的目标
+
+首先，整个轨迹规划的目标是生成平滑、安全且动态可行的B样条轨迹。这里的轨迹指的是四旋翼飞行器在三维空间中的路径。轨迹规划的优化目标函数如下：
+
+$$
+\arg \min_{\mathbf{x}_{c,b}, \Delta t_b} f_s + w_t T + \lambda_c f_c + \lambda_d (f_v + f_a) + \lambda_{bs} f_{bs}
+$$
+
+这个目标函数包含几个部分，每个部分代表一种不同的成本或惩罚，我们需要对它们进行最小化。
+
+### 弹性带平滑成本 (Elastic Band Smoothing Cost)
+
+$$
+f_s = \sum_{i=0}^{N_b-2} \mathbf{s}_i^T \mathbf{R}_s \mathbf{s}_i，\ \mathbf{s}_i = \mathbf{x}_{c,i+2} - 2\mathbf{x}_{c,i+1} + \mathbf{x}_{c,i}
+$$
+
+- **解释：** 这是一个用于平滑轨迹的成本函数。我们希望轨迹是平滑的，不要有太多的急剧变化。
+- **公式中的部分：**
+  - \(\mathbf{s}_i = \mathbf{x}_{c,i+2} - 2\mathbf{x}_{c,i+1} + \mathbf{x}_{c,i}\) 是二阶差分，表示的是轨迹在第 \(i\) 点处的平滑程度。通过最小化 \(\mathbf{s}_i\)，可以使得轨迹更平滑。
+  - \(\mathbf{R}_s\) 是一个惩罚矩阵，用于权衡平滑度和其他因素（如位置和平滑度之间的权重）。
+
+### 惩罚矩阵
+
+$$
+\mathbf{R}_s = \begin{bmatrix}
+w_{s,p} \mathbf{I}_3 & 0 \\
+0^T & w_{s,\xi} 
+\end{bmatrix}
+$$
+
+- **解释：** 这个矩阵定义了惩罚的权重。
+  - \(\mathbf{I}_3\) 是一个 \(3 \times 3\) 的单位矩阵，表示位置坐标的权重。
+  - \(w_{s,\xi}\) 是姿态角的权重。
+  
+### 总轨迹时间
+
+$$
+T = (N_b + 1 - p_b) \cdot \Delta t_b
+$$
+
+- **解释：** 这个公式表示总的轨迹时间。
+  - \(N_b\) 是B样条控制点的数量。
+  - \(p_b\) 是B样条的阶数。
+  - \(\Delta t_b\) 是节点间隔时间。
+
+### 安全性惩罚项
+
+$$ 
+f_c = \sum_{i=0}^{N_b} \mathcal{P}(d(\mathbf{p}_{c,i}), d_{min}) 
+$$
+
+- **解释：** 这个惩罚项确保轨迹不会过于接近障碍物。
+  - \(d(\mathbf{p}_{c,i})\) 是点 \(\mathbf{p}_{c,i}\) 到最近障碍物的距离。
+  - \(d_{min}\) 是一个安全距离阈值，通常设定为大于四旋翼半径的值。
+
+### 动态可行性惩罚项
+
+- 速度惩罚项：
+
+$$ 
+f_v = \sum_{i=0}^{N_b-1} \left\{ \sum_{\mu \in \{x,y,z\}} \mathcal{P}(v_{max}, |\dot{p}_{c,i,\mu}|) + \mathcal{P}(\dot{\xi}_{max}, |\dot{\xi}_{c,i}|) \right\} 
+$$
+
+- 加速度惩罚项：
+
+$$ 
+f_a = \sum_{i=0}^{N_b-2} \left\{ \sum_{\mu \in \{x,y,z\}} \mathcal{P}(a_{max}, |\ddot{p}_{c,i,\mu}|) + \mathcal{P}(\ddot{\xi}_{max}, |\ddot{\xi}_{c,i}|) \right\} 
+$$
+
+- **解释：** 这些惩罚项用于确保轨迹在速度和加速度上是可行的。
+  - \(|\dot{p}_{c,i,\mu}|\) 和 \(|\ddot{p}_{c,i,\mu}|\) 分别表示速度和加速度。
+  - \(\mathcal{P}\) 是一个惩罚函数，当速度或加速度超过最大值时，会增加成本。
+
+### 导数控制点
+
+- 一阶导数（速度）：
+
+$$ \dot{\mathbf{x}}_{c,i} = \left[ \dot{p}_{c,i,x}, \dot{p}_{c,i,y}, \dot{p}_{c,i,z}, \dot{\xi}_{c,i} \right]^{\mathrm{T}} = \frac{\mathbf{x}_{c,i+1} - \mathbf{x}_{c,i}}{\Delta t_b} $$
+
+- 二阶导数（加速度）：
+
+$$ \ddot{\mathbf{x}}_{c,i} = \left[ \ddot{p}_{c,i,x}, \ddot{p}_{c,i,y}, \ddot{p}_{c,i,z}, \ddot{\xi}_{c,i} \right]^{\mathrm{T}} = \frac{\mathbf{x}_{c,i+2} - 2\mathbf{x}_{c,i+1} + \mathbf{x}_{c,i}}{\Delta t_b^2} $$
+
+- **解释：** 这些公式用于计算速度和加速度，以便在优化过程中使用。
+
+通过理解这些公式，我们可以看到轨迹规划的目标是通过平滑、时间、速度、加速度和安全性等多个方面来优化B样条轨迹，以确保四旋翼飞行器的轨迹是可行的且高效的。
+
+### 边界状态惩罚项公式
+
+公式为：
+
+$$ 
+f_{bs} = \left\| \frac{\mathbf{x}_{c,0} + 4\mathbf{x}_{c,1} + \mathbf{x}_{c,2}}{6} - \mathbf{x}_0 \right\|^2 + \left\| \frac{\dot{\mathbf{x}}_{c,0} + \dot{\mathbf{x}}_{c,1}}{2} - \dot{\mathbf{x}}_0 \right\|^2 + \left\| \ddot{\mathbf{x}}_{c,0} - \ddot{\mathbf{x}}_0 \right\|^2 + \left\| \frac{\mathbf{x}_{c,N_b-2} + 4\mathbf{x}_{c,N_b-1} + \mathbf{x}_{c,N_b}}{6} - \mathbf{x}_{\text{next}} \right\|^2 \quad \text{(17)}
+$$
+
+### 解析每一项
+
+1. **起始点的 0 阶导数匹配项：**
+
+$$ 
+\left\| \frac{\mathbf{x}_{c,0} + 4\mathbf{x}_{c,1} + \mathbf{x}_{c,2}}{6} - \mathbf{x}_0 \right\|^2
+$$
+
+- **解释：** 这项表示 B 样条在起始点的值 \(\mathbf{x}_{c,0}\) 应该与预设的起始点 \(\mathbf{x}_0\) 匹配。
+- **公式中的部分：**
+  - \(\frac{\mathbf{x}_{c,0} + 4\mathbf{x}_{c,1} + \mathbf{x}_{c,2}}{6}\) 是三次 B 样条在起始点的值。使用这种权重组合是因为三次 B 样条在控制点处的插值特性。
+  - \(\left\| \cdot \right\|^2\) 是二范数，用于计算匹配误差的平方。
+
+2. **起始点的 1 阶导数匹配项：**
+
+$$ 
+\left\| \frac{\dot{\mathbf{x}}_{c,0} + \dot{\mathbf{x}}_{c,1}}{2} - \dot{\mathbf{x}}_0 \right\|^2
+$$
+
+- **解释：** 这项表示 B 样条在起始点的速度 \(\dot{\mathbf{x}}_{c,0}\) 应该与预设的起始速度 \(\dot{\mathbf{x}}_0\) 匹配。
+- **公式中的部分：**
+  - \(\frac{\dot{\mathbf{x}}_{c,0} + \dot{\mathbf{x}}_{c,1}}{2}\) 是三次 B 样条在起始点的速度。权重组合取决于三次 B 样条的导数特性。
+  - 同样，\(\left\| \cdot \right\|^2\) 用于计算误差平方。
+
+3. **起始点的 2 阶导数匹配项：**
+
+$$ 
+\left\| \ddot{\mathbf{x}}_{c,0} - \ddot{\mathbf{x}}_0 \right\|^2
+$$
+
+- **解释：** 这项表示 B 样条在起始点的加速度 \(\ddot{\mathbf{x}}_{c,0}\) 应该与预设的起始加速度 \(\ddot{\mathbf{x}}_0\) 匹配。
+- **公式中的部分：**
+  - \(\ddot{\mathbf{x}}_{c,0}\) 是三次 B 样条在起始点的加速度。
+  - 同样，\(\left\| \cdot \right\|^2\) 用于计算误差平方。
+
+4. **终点的 0 阶导数匹配项：**
+
+$$ 
+\left\| \frac{\mathbf{x}_{c,N_b-2} + 4\mathbf{x}_{c,N_b-1} + \mathbf{x}_{c,N_b}}{6} - \mathbf{x}_{\text{next}} \right\|^2
+$$
+
+- **解释：** 这项表示 B 样条在终点的值 \(\mathbf{x}_{c,N_b}\) 应该与预设的下一个视点 \(\mathbf{x}_{\text{next}}\) 匹配。
+- **公式中的部分：**
+  - \(\frac{\mathbf{x}_{c,N_b-2} + 4\mathbf{x}_{c,N_b-1} + \mathbf{x}_{c,N_b}}{6}\) 是三次 B 样条在终点的值。使用这种权重组合是因为三次 B 样条在控制点处的插值特性。
+  - 同样，\(\left\| \cdot \right\|^2\) 用于计算误差平方。
+
+### 总结
+
+这个边界状态惩罚项 \( f_{bs} \) 的公式通过约束 B 样条在起始和终止点的 0 到 2 阶导数，以确保轨迹的平滑性和状态匹配。这些约束通过在优化过程中加入适当的惩罚项来实现，使得最终生成的轨迹不仅平滑，而且满足预设的边界条件。
+
