@@ -34,7 +34,10 @@ A. 前沿信息结构
 当创建新的前沿簇 $( F_i )$ 时，会计算一个前沿信息结构 $( FL_i )$。它存储属于该簇的所有单元格 $( C_i )$ 及其平均位置 $( p_{avg, i} )$。同时还计算了簇的轴对齐包围盒（AABB）$( B_i )$，以加速检测前沿变化（第四节B部分）。为了服务于探索规划（第五节），围绕簇生成候选视点 $( VP_i )$。此外，还计算了一个双向链表 $( L_{cost, i} )$，包含 $( F_i )$ 与所有其他簇之间的连接成本。FIS存储的数据列在表I中。
 
 ![Alt text](image-1.png)
+
 B. 增量前沿检测和聚类
+
+![Alt text](image-7.png)
 
 如图3所示，每当通过传感器测量更新地图时，也会记录更新区域 $(B_m)$ 的轴对齐边界框（AABB），其中移除过时的前沿簇并搜索新的前沿簇。首先，遍历所有簇并仅返回其AABB ($(B_i)$) 与 $(B_m)$ 相交的簇。然后，对返回的簇进行精确检查，移除其中包含不再是前沿的单元的簇。这两个过程受到广/窄阶段碰撞检测算法[32]的启发，这些算法以快速方式消除大多数不受影响的簇，并显著减少昂贵的精确检查的次数。
 
@@ -55,14 +58,6 @@ $$ t_{lb}(x_{k1,j1}, x_{k2,j2}) = \max \left\{ \frac{\text{length} (P(p_{k1,j1},
 为了执行探索路径的全局规划（见第五部分），需要每对簇 $(F_{k1}, F_{k2})$ 之间的连接成本。设 $(t_{lb}(x_{k1,j1}, x_{k2,j2}))$ 表示在两个视点 $(x_{k1,j1})$ 和 $(x_{k2,j2})$ 之间移动时的时间下限成本，它由以下公式计算：
 $$ t_{lb}(x_{k1,j1}, x_{k2,j2}) = \max \left\{ \frac{\text{length} (P(p_{k1,j1}, p_{k2,j2}))}{v_{\max}}, \frac{\min (|\xi_{k1,j1} - \xi_{k2,j2}|, 2\pi - |\xi_{k1,j1} - \xi_{k2,j2}|)}{\xi_{\max}} \right\} $$
 
-其中，$(P(p_{k1,j1}, p_{k2,j2}))$ 表示通过路径搜索算法找到的点 $(p_{k1,j1})$ 和 $(p_{k2,j2})$ 之间的无碰撞路径，$(v_{\max})$ 和 $(\xi_{\max})$ 分别是速度和偏航角速度的上限。对于每对 $(F_{k1}, F_{k2})$，我们选择覆盖率最高的视点并估算成本为 $(t_{lb}(x_{k1,1}, x_{k2,1}))$，其中 $(P(p_{k1,1}, p_{k2,1}))$ 使用A*算法在体素网格图上搜索。
-
-请注意，从头开始计算所有 $(N_{cls})$ 簇对之间的连接成本需要 $(O(N_{cls}^2))$ 次 A* 搜索，这相当昂贵。幸运的是，这些成本也可以通过增量方式计算。当移除过时的簇时（见第四部分B节），所有剩余FIS的关联成本项 $(L_{cost,i})$ 被擦除。之后，从每个新簇到所有其他簇的连接成本会被重新计算。
-$$ t_{lb}(x_{k1,j1}, x_{k2,j2}) = \max \left\{ \frac{\text{length} (P(p_{k1,j1}, p_{k2,j2}))}{v_{\max}}, \frac{\min (|\xi_{k1,j1} - \xi_{k2,j2}|, 2\pi - |\xi_{k1,j1} - \xi_{k2,j2}|)}{\xi_{\max}} \right\} $$
-
-其中，$(P(p_{k1,j1}, p_{k2,j2}))$ 表示通过路径搜索算法找到的点 $(p_{k1,j1})$ 和 $(p_{k2,j2})$ 之间的无碰撞路径，$(v_{\max})$ 和 $(\xi_{\max})$ 分别是速度和偏航角速度的上限。对于每对 $(F_{k1}, F_{k2})$，我们选择覆盖率最高的视点并估算成本为 $(t_{lb}(x_{k1,1}, x_{k2,1}))$，其中 $(P(p_{k1,1}, p_{k2,1}))$ 使用A*算法在体素网格图上搜索。
-
-请注意，从头开始计算所有 $(N_{cls})$ 簇对之间的连接成本需要 $(O(N_{cls}^2))$ 次 A* 搜索，这相当昂贵。幸运的是，这些成本也可以通过增量方式计算。当移除过时的簇时（见第四部分B节），所有剩余FIS的关联成本项 $(L_{cost,i})$ 被擦除。之后，从每个新簇到所有其他簇的连接成本会被重新计算。
 
 ## V. 分层探索规划
 
@@ -195,6 +190,28 @@ $$
 我们在仿真中测试我们提出的框架，并在桥梁场景和大型迷宫场景中进行基准测试。比较了三种方法：NBVP [12]、经典前沿方法 [7] 和快速前沿方法 [1]。请注意，[1]没有开源代码可用，因此我们使用我们的实现。在所有测试中，动态限制设置为 vmax = 2.0 m/s 和 smax = 0.9 rad/s。所有方法的传感器视野（FOV）设置为 [80 x 60] 度，最大范围为 4.5 m。在两种场景中，每种方法都运行3次，具有相同的初始配置。四种方法的探索进度统计显示在表 II 中，每个组件的计算时间列在表 III 中。
 
 
+
+**1）桥梁场景**：首先，我们在一个包含桥梁的10×20×5立方米的空间中比较了四种方法，如图7所示。结果表明，我们的方法达到了更短的探索时间和更小的时间方差。我们方法的整体探索路径显著缩短，主要是因为我们在全球范围内规划旅行。执行的路径更加平滑，因为我们在局部细化运动并生成平滑的轨迹。此外，由于最小时间轨迹规划，我们能够以更高的飞行速度导航。
+
+
+**2）大型迷宫场景**：我们还在图9所示的大型迷宫环境中定量比较了这些方法。探索的空间为20×80×3立方米。在这种情况下，由于场景的复杂性，所有的基准方法都需要很长时间才能达到全面覆盖。相比之下，我们的方法平均完成探索的速度快了4倍以上。四种方法在完成后的路径显示在图9中。显著的是，我们的方法以更合理的顺序探索迷宫，不会频繁地重新访问相同的地方。因此，它产生了一条更短的覆盖路径和大致线性的探索速度（图8）。这种行为是由于全局规划，没有全局规划的情况下，已知区域可能会被多次重新访问，减慢进程，就像基准方法那样。此外，注意到在大型迷宫中的计算时间更长，这主要是由于场景更大，自然涉及更多的前沿集群。
+
+
+**C. 野外探索测试**：
+
+为了进一步验证所提出的方法，我们在室内和室外环境中进行了广泛的野外实验。在所有测试中，我们设置的动力学限制为 \( v_{\text{max}} = 1.5 \) m/s，\( a_{\text{max}} = 0.8 \) m/s\(^2\) 和 \( \dot{\xi}_{\text{max}} = 0.9 \) rad/s。请注意，我们没有使用任何外部设备进行定位，仅依赖机载状态估计器。
+
+首先，我们在两个室内场景中进行了快速探索测试。第一个场景如图1所示，其中我们部署了数十个障碍物，四旋翼无人机应执行3D机动以同时绘制未知空间和避开障碍物。我们将要探索的空间限定在一个10×6×2立方米的箱子内。一个示例地图和飞行轨迹如图1所示。第二个室内场景是一个包含两个房间的较大环境，一个房间类似于场景1，另一个房间是一个办公室的一部分，里面有桌子和椅子。该空间被限定在一个15×11×2立方米的箱子内。四旋翼无人机首先从大的房间开始探索，然后进入较小的房间。第二个场景的在线生成地图和轨迹如图10所示。请注意，在这两个场景中，四旋翼无人机从一个能见度低的点开始，只在开始时绘制环境的一小部分区域。最后，为了验证我们在自然环境中的方法，我们在森林中进行探索测试。探索区域的大小为11×10×2立方米。实验环境和相关结果如图11所示。
+
+
+上述实验展示了我们的方法在复杂现实场景中的能力。它们还展示了我们自主四旋翼系统的优点，其中状态估计【36】和映射模块【34】对于完成现实任务也至关重要。所有实验的视频演示可在图1中找到，我们建议读者查看以获取更多详细信息。
+
+
+## **VII. 结论**
+
+在本文中，我们提出了一个用于快速自主四旋翼无人机探索的分层框架。引入了逐步维护的FIS（功能性信息系统），为探索规划提供必要的信息。基于FIS，一个分层规划器在三个连续步骤中规划探索动作，这些步骤包括寻找有效的全局路径，选择一组局部最佳视点，并生成最小时间的局部轨迹。该方法以高频率做出决策，以快速响应环境变化。基准测试和现实世界测试都展示了我们方法的能力。
+
+我们的方法的一个限制是假设了完美的状态估计，正如大多数方法一样。我们在仿真中使用真实定位进行方法评估，而没有考虑姿态漂移。然而，状态估计中的误差普遍存在且不可忽视。在未来，我们计划考虑我们方法中的状态估计不确定性，并在存在姿态漂移的情况下评估其性能。
 ## 系统结构图
 
 ![Alt text](image.png)
@@ -476,5 +493,91 @@ $$
 ### 总结
 
 这个边界状态惩罚项 $( f_{bs} )$ 的公式通过约束 B 样条在起始和终止点的 0 到 2 阶导数，以确保轨迹的平滑性和状态匹配。这些约束通过在优化过程中加入适当的惩罚项来实现，使得最终生成的轨迹不仅平滑，而且满足预设的边界条件。
+## 问题
+### 增量更新的 FIS是如何实现的
 
+增量更新的FIS是通过在每次地图更新时记录更新区域的AABB，然后移除过时的frontier clusters并搜索新的frontiers来实现的。这个过程首先遍历所有clusters，然后只返回与更新区域AABB相交的clusters，接着对返回的clusters进行精确检查，移除不再是frontier的clusters。这个方法受到了广泛/狭窄相位碰撞检测算法的启发，通过快速消除大部分不受影响的clusters并显著减少昂贵的精确检查来提高效率。新的frontiers会被搜索并通过区域生长算法聚类成组，然后对每个cluster进行主成分分析（PCA），如果最大特征值超过阈值，则沿着第一个主轴将其分成两个均匀的clusters，以此递归地将所有大clusters分割成小clusters
+
+### 增量更新的FIS（前沿信息结构）
+
+#### 概述
+增量更新的FIS（Frontier Information Structure）用于维护探索规划所需的关键信息，并在探索过程中逐步更新。这种方法提高了规划的频率和效率，适用于复杂的未知环境。实现增量更新的FIS主要包括以下几个步骤：
+
+#### 1. 前沿信息结构（Frontier Information Structure）
+当创建新的前沿簇（Frontier Cluster）时，计算出对应的前沿信息结构（FIi），它存储属于该簇的所有单元格（Cells Ci）、平均位置（pavg,i）、轴对齐边界框（AABB Bi）等信息。此外，还生成覆盖簇的候选视点（Viewpoints VPi）和与其他簇的连接成本（Connection Costs）。
+
+#### 2. 前沿检测和簇分割
+每次地图更新时，记录更新区域的AABB（Bm），并在该区域内删除过时的前沿簇，搜索新的前沿簇。具体步骤如下：
+
+1. **检测过时的前沿簇**：
+   - 遍历所有前沿簇，返回那些与更新区域Bm相交的簇（Bi）。
+   - 对这些返回的簇进行精确检查，删除不再属于前沿的单元格。
+
+2. **搜索和分割新前沿**：
+   - 使用区域增长算法搜索新的前沿，并将其分组。
+   - 对于包含小数量单元格的簇（通常由噪声传感器观测引起），忽略这些簇。
+   - 对于较大的簇，使用主成分分析（PCA）对簇进行分割，确保每个簇的大小合适，从而便于做出精细的决策。
+
+#### 3. 生成候选视点和更新成本
+1. **生成候选视点**：
+   - 为每个前沿簇生成一组覆盖簇的候选视点（VPi）。
+   - 在簇的中心点生成的圆柱坐标系内均匀采样视点。
+   - 每个视点的偏航角（Yaw Angle ξ）通过优化方法确定，以最大化传感器对前沿簇的覆盖。
+
+2. **更新连接成本**：
+   - 计算每对前沿簇之间的连接成本（Connection Costs）。
+   - 为每对簇选择覆盖最高的视点，并使用A*算法在体素网格地图上搜索无碰撞路径，计算时间下界（Time Lower Bound）。
+   - 连接成本的增量更新：
+     - 删除过时簇时，移除所有剩余FIS中的相关成本项。
+     - 计算新簇到所有其他簇的连接成本，并插入到Lcost,i中。
+
+#### 代码实现
+```python
+class FrontierInformationStructure:
+    def __init__(self):
+        self.frontier_clusters = []
+
+    def update_map(self, updated_region):
+        # Step 1: Detect and remove outdated frontiers
+        affected_clusters = self.detect_affected_clusters(updated_region)
+        for cluster in affected_clusters:
+            if not self.is_frontier(cluster):
+                self.remove_cluster(cluster)
+        
+        # Step 2: Search and cluster new frontiers
+        new_frontiers = self.search_new_frontiers(updated_region)
+        for frontier in new_frontiers:
+            if len(frontier) > threshold:
+                new_clusters = self.split_large_clusters(frontier)
+                self.frontier_clusters.extend(new_clusters)
+
+    def detect_affected_clusters(self, updated_region):
+        # Detect clusters affected by the updated region
+        return [cluster for cluster in self.frontier_clusters if self.intersects(cluster, updated_region)]
+
+    def is_frontier(self, cluster):
+        # Check if a cluster still qualifies as a frontier
+        return any(cell in cluster for cell in updated_region)
+
+    def remove_cluster(self, cluster):
+        self.frontier_clusters.remove(cluster)
+
+    def search_new_frontiers(self, updated_region):
+        # Implement region growing algorithm to find new frontiers
+        return region_growing(updated_region)
+
+    def split_large_clusters(self, cluster):
+        # Split large clusters using PCA
+        pca = PCA(n_components=2)
+        transformed_cluster = pca.fit_transform(cluster)
+        if max(pca.explained_variance_) > threshold:
+            return self.split_cluster(transformed_cluster)
+        return [cluster]
+
+    def split_cluster(self, cluster):
+        # Recursively split cluster based on PCA
+        return split_algorithm(cluster)
+```
+
+通过这种增量更新的方法，可以在地图每次更新后迅速调整前沿簇和前沿信息结构，从而确保UAV探索规划的高频率和高效率。
 
