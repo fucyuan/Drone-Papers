@@ -1,0 +1,33 @@
+{
+  "configurations": [
+    {
+      "browse": {
+        "databaseFilename": "${default}",
+        "limitSymbolsToIncludedHeaders": false
+      },
+      "includePath": [
+        "/home/fcy/Drone-Papers/工作空间/devel/include/**",
+        "/opt/ros/noetic/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/planner/bspline_opt/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/planner/plan_manage/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/mockamap/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/Utils/multi_map_server/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/planner/path_searching/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/planner/plan_env/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/Utils/pose_utils/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/Utils/quadrotor_msgs/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/so3_control/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/so3_quadrotor_simulator/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/planner/traj_utils/include/**",
+        "/home/fcy/Drone-Papers/工作空间/src/uav_simulator/Utils/uav_utils/include/**",
+        "/usr/include/**"
+      ],
+      "name": "ROS",
+      "intelliSenseMode": "gcc-x64",
+      "compilerPath": "/usr/bin/gcc",
+      "cStandard": "gnu11",
+      "cppStandard": "c++14"
+    }
+  ],
+  "version": 4
+}

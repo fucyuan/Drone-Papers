@@ -1,0 +1,8 @@
+prefix=/home/fcy/Drone-Papers/工作空间/install
+
+Name: my_visualization
+Description: Description of my_visualization
+Version: 0.0.0
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lmy_visualization
+Requires: 

@@ -1,0 +1,8 @@
+prefix=/home/fcy/Drone-Papers/工作空间/devel
+
+Name: min_snap
+Description: Description of min_snap
+Version: 0.0.0
+Cflags: -I/home/fcy/Drone-Papers/工作空间/src/planner/min_snap/include
+Libs: -L${prefix}/lib 
+Requires: roscpp rospy std_msgs traj_utils

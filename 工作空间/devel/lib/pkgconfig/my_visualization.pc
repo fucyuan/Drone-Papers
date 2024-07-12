@@ -1,0 +1,8 @@
+prefix=/home/fcy/Drone-Papers/工作空间/devel
+
+Name: my_visualization
+Description: Description of my_visualization
+Version: 0.0.0
+Cflags: -I/home/fcy/Drone-Papers/工作空间/src/uav_simulator/my_visualization/include
+Libs: -L${prefix}/lib -lmy_visualization
+Requires: 

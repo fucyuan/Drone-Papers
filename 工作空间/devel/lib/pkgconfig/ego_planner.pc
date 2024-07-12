@@ -1,0 +1,8 @@
+prefix=/home/fcy/Drone-Papers/工作空间/devel
+
+Name: ego_planner
+Description: Description of ego_planner
+Version: 0.0.0
+Cflags: -I/home/fcy/Drone-Papers/工作空间/devel/include -I/home/fcy/Drone-Papers/工作空间/src/planner/plan_manage/include
+Libs: -L${prefix}/lib -lego_planner
+Requires: plan_env path_searching bspline_opt traj_utils message_runtime
