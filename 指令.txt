@@ -1,0 +1,32 @@
+realsense驱动安装
+sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-key  F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE || sudo apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv-key  F6E65AC044F831AC80A06380C8B3A55A6F3EFCDE
+sudo add-apt-repository "deb https://librealsense.intel.com/Debian/apt-repo $(lsb_release -cs) main" -u
+sudo apt-get install librealsense2-dkms
+sudo apt-get install librealsense2-utils
+sudo apt-get install librealsense2-dev
+sudo apt-get install librealsense2-dbg
+测试：realsense-viewer
+注意测试时左上角显示的USB必须是3.x，如果是2.x，可能是USB线是2.0的，或者插在了2.0的USB口上（3.0的线和口都是蓝色的）
+安装mavros
+sudo apt-get install ros-noetic-mavros
+cd /opt/ros/noetic/lib/mavros
+sudo ./install_geographiclib_datasets.sh
+安装ceres与glog与ddyanmic-reconfigure
+解压3rd_party.zip压缩包
+进入glog文件夹打开终端
+./autogen.sh && ./configure && make && sudo make install
+sudo apt-get install liblapack-dev libsuitesparse-dev libcxsparse3.1.2 libgflags-dev libgoogle-glog-dev libgtest-dev
+进入ceres文件夹打开终端
+mkdir build
+cd build
+cmake ..
+sudo make -j4
+sudo make install
+sudo apt-get install ros-noetic-ddynamic-reconfigure
+下载ego-planner源码并编译
+git clone https://github.com/ZJU-FAST-Lab/Fast-Drone-250
+cd Fast-Drone-250
+catkin_make
+source devel/setup.bash
+roslaunch ego_planner single_run_in_sim.launch
+在Rviz内按下键盘G键，再单击鼠标左键以点选无人机目标点
