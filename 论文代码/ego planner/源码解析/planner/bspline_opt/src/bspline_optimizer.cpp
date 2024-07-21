@@ -5,19 +5,28 @@
 namespace ego_planner
 {
 
-  void BsplineOptimizer::setParam(ros::NodeHandle &nh)
-  {
+void BsplineOptimizer::setParam(ros::NodeHandle &nh)
+{
+    // 从参数服务器读取优化平滑性权重，如果未设置则默认值为-1.0
     nh.param("optimization/lambda_smooth", lambda1_, -1.0);
+    // 从参数服务器读取优化碰撞检测权重，如果未设置则默认值为-1.0
     nh.param("optimization/lambda_collision", lambda2_, -1.0);
+    // 从参数服务器读取优化可行性权重，如果未设置则默认值为-1.0
     nh.param("optimization/lambda_feasibility", lambda3_, -1.0);
+    // 从参数服务器读取优化适应性权重，如果未设置则默认值为-1.0
     nh.param("optimization/lambda_fitness", lambda4_, -1.0);
 
+    // 从参数服务器读取距离阈值，如果未设置则默认值为-1.0
     nh.param("optimization/dist0", dist0_, -1.0);
+    // 从参数服务器读取最大速度，如果未设置则默认值为-1.0
     nh.param("optimization/max_vel", max_vel_, -1.0);
+    // 从参数服务器读取最大加速度，如果未设置则默认值为-1.0
     nh.param("optimization/max_acc", max_acc_, -1.0);
 
+    // 从参数服务器读取B样条的阶数，如果未设置则默认值为3
     nh.param("optimization/order", order_, 3);
-  }
+}
+
 
   void BsplineOptimizer::setEnvironment(const GridMap::Ptr &env)
   {

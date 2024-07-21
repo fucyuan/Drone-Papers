@@ -10,30 +10,40 @@ namespace ego_planner
   EGOPlannerManager::EGOPlannerManager() {}
 
   EGOPlannerManager::~EGOPlannerManager() { std::cout << "des manager" << std::endl; }
-
-  void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh, PlanningVisualization::Ptr vis)
-  {
-    /* read algorithm parameters */
-
+void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh, PlanningVisualization::Ptr vis)
+{
+    /* 读取算法参数 */
+    
+    // 从参数服务器中读取最大速度参数，如果没有设置，则默认值为-1.0
     nh.param("manager/max_vel", pp_.max_vel_, -1.0);
+    // 从参数服务器中读取最大加速度参数，如果没有设置，则默认值为-1.0
     nh.param("manager/max_acc", pp_.max_acc_, -1.0);
+    // 从参数服务器中读取最大跃度（jerk）参数，如果没有设置，则默认值为-1.0
     nh.param("manager/max_jerk", pp_.max_jerk_, -1.0);
+    // 从参数服务器中读取可行性容差参数，如果没有设置，则默认值为0.0
     nh.param("manager/feasibility_tolerance", pp_.feasibility_tolerance_, 0.0);
+    // 从参数服务器中读取控制点距离参数，如果没有设置，则默认值为-1.0
     nh.param("manager/control_points_distance", pp_.ctrl_pt_dist, -1.0);
+    // 从参数服务器中读取规划地平线参数，如果没有设置，则默认值为5.0
     nh.param("manager/planning_horizon", pp_.planning_horizen_, 5.0);
 
+    // 初始化本地数据的轨迹ID为0
     local_data_.traj_id_ = 0;
+    // 重置栅格地图对象，并初始化
     grid_map_.reset(new GridMap);
     grid_map_->initMap(nh);
 
+    // 重置B样条优化器，并设置参数和环境
     bspline_optimizer_rebound_.reset(new BsplineOptimizer);
     bspline_optimizer_rebound_->setParam(nh);
     bspline_optimizer_rebound_->setEnvironment(grid_map_);
+    // 初始化A星算法并设置栅格地图
     bspline_optimizer_rebound_->a_star_.reset(new AStar);
     bspline_optimizer_rebound_->a_star_->initGridMap(grid_map_, Eigen::Vector3i(100, 100, 100));
 
+    // 设置可视化对象
     visualization_ = vis;
-  }
+}
 
   // !SECTION
 

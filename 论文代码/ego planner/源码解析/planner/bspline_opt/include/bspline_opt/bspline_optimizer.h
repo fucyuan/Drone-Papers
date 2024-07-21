@@ -8,24 +8,23 @@
 #include <ros/ros.h>
 #include "bspline_opt/lbfgs.hpp"
 
-// Gradient and elasitc band optimization
+// 梯度和弹性带优化
 
-// Input: a signed distance field and a sequence of points
-// Output: the optimized sequence of points
-// The format of points: N x 3 matrix, each row is a point
+// 输入：带符号的距离场和一系列点
+// 输出：优化后的点序列
+// 点的格式：N x 3 矩阵，每行一个点
 namespace ego_planner
 {
 
   class ControlPoints
   {
   public:
-    double clearance;
-    int size;
-    Eigen::MatrixXd points;
-    std::vector<std::vector<Eigen::Vector3d>> base_point; // The point at the statrt of the direction vector (collision point)
-    std::vector<std::vector<Eigen::Vector3d>> direction;  // Direction vector, must be normalized.
-    std::vector<bool> flag_temp;                          // A flag that used in many places. Initialize it everytime before using it.
-    // std::vector<bool> occupancy;
+    double clearance; // 清除距离
+    int size; // 控制点的数量
+    Eigen::MatrixXd points; // 控制点的矩阵
+    std::vector<std::vector<Eigen::Vector3d>> base_point; // 方向向量起点的点（碰撞点）
+    std::vector<std::vector<Eigen::Vector3d>> direction;  // 方向向量，必须归一化
+    std::vector<bool> flag_temp; // 在许多地方使用的临时标志，在每次使用前初始化
 
     void resize(const int size_set)
     {
@@ -34,41 +33,38 @@ namespace ego_planner
       base_point.clear();
       direction.clear();
       flag_temp.clear();
-      // occupancy.clear();
 
       points.resize(3, size_set);
       base_point.resize(size);
       direction.resize(size);
       flag_temp.resize(size);
-      // occupancy.resize(size);
     }
   };
 
   class BsplineOptimizer
   {
-
   public:
     BsplineOptimizer() {}
     ~BsplineOptimizer() {}
 
-    /* main API */
+    /* 主要 API */
     void setEnvironment(const GridMap::Ptr &env);
     void setParam(ros::NodeHandle &nh);
     Eigen::MatrixXd BsplineOptimizeTraj(const Eigen::MatrixXd &points, const double &ts,
                                         const int &cost_function, int max_num_id, int max_time_id);
 
-    /* helper function */
+    /* 辅助函数 */
 
-    // required inputs
+    // 必需的输入
     void setControlPoints(const Eigen::MatrixXd &points);
     void setBsplineInterval(const double &ts);
     void setCostFunction(const int &cost_function);
     void setTerminateCond(const int &max_num_id, const int &max_time_id);
 
-    // optional inputs
+    // 可选的输入
     void setGuidePath(const vector<Eigen::Vector3d> &guide_pt);
     void setWaypoints(const vector<Eigen::Vector3d> &waypts,
-                      const vector<int> &waypt_idx); // N-2 constraints at most
+                      const vector<int> &waypt_idx); // 最多 N-2 个约束
 
     void optimize();
 
@@ -78,7 +74,7 @@ namespace ego_planner
     std::vector<Eigen::Vector3d> ref_pts_;
 
     std::vector<std::vector<Eigen::Vector3d>> initControlPoints(Eigen::MatrixXd &init_points, bool flag_first_init = true);
-    bool BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double ts); // must be called after initControlPoints()
+    bool BsplineOptimizeTrajRebound(Eigen::MatrixXd &optimal_points, double ts); // 必须在 initControlPoints() 之后调用
     bool BsplineOptimizeTrajRefine(const Eigen::MatrixXd &init_points, const double ts, Eigen::MatrixXd &optimal_points);
 
     inline int getOrder(void) { return order_; }
@@ -93,46 +89,39 @@ namespace ego_planner
       STOP_FOR_ERROR
     } force_stop_type_;
 
-    // main input
-    // Eigen::MatrixXd control_points_;     // B-spline control points, N x dim
-    double bspline_interval_; // B-spline knot span
-    Eigen::Vector3d end_pt_;  // end of the trajectory
-    // int             dim_;                // dimension of the B-spline
-    //
-    vector<Eigen::Vector3d> guide_pts_; // geometric guiding path points, N-6
-    vector<Eigen::Vector3d> waypoints_; // waypts constraints
-    vector<int> waypt_idx_;             // waypts constraints index
-                                        //
-    int max_num_id_, max_time_id_;      // stopping criteria
-    int cost_function_;                 // used to determine objective function
-    double start_time_;                 // global time for moving obstacles
+    // 主要输入
+    double bspline_interval_; // B样条节点间隔
+    Eigen::Vector3d end_pt_;  // 轨迹的终点
 
-    /* optimization parameters */
-    int order_;                    // bspline degree
-    double lambda1_;               // jerk smoothness weight
-    double lambda2_, new_lambda2_; // distance weight
-    double lambda3_;               // feasibility weight
-    double lambda4_;               // curve fitting
+    vector<Eigen::Vector3d> guide_pts_; // 几何引导路径点，N-6
+    vector<Eigen::Vector3d> waypoints_; // 约束路径点
+    vector<int> waypt_idx_; // 路径点约束的索引
 
-    int a;
-    //
-    double dist0_;             // safe distance
-    double max_vel_, max_acc_; // dynamic limits
+    int max_num_id_, max_time_id_; // 停止条件
+    int cost_function_; // 用于确定目标函数
+    double start_time_; // 用于动态障碍物的全局时间
 
-    int variable_num_;              // optimization variables
-    int iter_num_;                  // iteration of the solver
-    Eigen::VectorXd best_variable_; //
-    double min_cost_;               //
+    /* 优化参数 */
+    int order_; // B样条的阶数
+    double lambda1_; // 跃度平滑权重
+    double lambda2_, new_lambda2_; // 距离权重
+    double lambda3_; // 可行性权重
+    double lambda4_; // 曲线拟合权重
 
-    ControlPoints cps_;
+    double dist0_; // 安全距离
+    double max_vel_, max_acc_; // 动态限制
 
-    /* cost function */
-    /* calculate each part of cost function with control points q as input */
+    int variable_num_; // 优化变量的数量
+    int iter_num_; // 求解器的迭代次数
+    Eigen::VectorXd best_variable_; // 最佳变量
+    double min_cost_; // 最小代价
 
+    ControlPoints cps_; // 控制点
+
+    /* 代价函数 */
     static double costFunction(const std::vector<double> &x, std::vector<double> &grad, void *func_data);
     void combineCost(const std::vector<double> &x, vector<double> &grad, double &cost);
 
-    // q contains all control points
     void calcSmoothnessCost(const Eigen::MatrixXd &q, double &cost,
                             Eigen::MatrixXd &gradient, bool falg_use_jerk = true);
     void calcFeasibilityCost(const Eigen::MatrixXd &q, double &cost,
@@ -150,7 +139,6 @@ namespace ego_planner
     void combineCostRebound(const double *x, double *grad, double &f_combine, const int n);
     void combineCostRefine(const double *x, double *grad, double &f_combine, const int n);
 
-    /* for benckmark evaluation only */
   public:
     typedef unique_ptr<BsplineOptimizer> Ptr;
 
