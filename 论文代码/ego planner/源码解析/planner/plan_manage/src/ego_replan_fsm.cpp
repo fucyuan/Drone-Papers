@@ -45,7 +45,7 @@ namespace ego_planner
 
 
   // 设置检查碰撞的回调函数，定时器频率为0.05秒
-  safety_timer_ = nh.createTimer(ros::Duration(0.05), &EGOReplanFSM::checkCollisionCallback, this); 
+  safety_timer_ = nh.createTimer(ros::Duration(0.01), &EGOReplanFSM::checkCollisionCallback, this); 
 
   // 订阅里程计数据
   odom_sub_ = nh.subscribe("/odom_world", 1, &EGOReplanFSM::odometryCallback, this);
@@ -281,6 +281,7 @@ std::pair<int, EGOReplanFSM::FSM_EXEC_STATE> EGOReplanFSM::timesOfConsecutiveSta
             // 第二个元素是当前执行的状态（exec_state_）
             return std::pair<int, FSM_EXEC_STATE>(continously_called_times_, exec_state_);
         }
+        第一次调用为false；
 
         */
 
