@@ -38,6 +38,17 @@ namespace ego_planner
   planner_manager_->initPlanModules(nh, visualization_);  // 初始化规划模块
 
   /* callback */
+    if (target_type_ == TARGET_TYPE::MANUAL_TARGET)  // 如果目标类型为手动目标
+    waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointCallback, this);//第一步
+  else if (target_type_ == TARGET_TYPE::PRESET_TARGET)  // 如果目标类型为预设目标
+  {
+    ros::Duration(1.0).sleep();  // 等待1秒
+    while (ros::ok() && !have_odom_)  // 在有里程计数据之前循环等待
+      ros::spinOnce();
+    planGlobalTrajbyGivenWps();  // 根据给定的路径点规划全局轨迹
+  }
+  else
+    cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;  // 如果目标类型错误，则输出错误信息
   // 设置执行FSM的回调函数，定时器频率为0.01秒
   exec_timer_ = nh.createTimer(ros::Duration(0.01), &EGOReplanFSM::execFSMCallback, this); 
   //this 关键字代表当前类（在这个案例中是 EGOReplanFSM 类）的实例自身。
@@ -54,17 +65,7 @@ namespace ego_planner
   bspline_pub_ = nh.advertise<ego_planner::Bspline>("/planning/bspline", 10);
   data_disp_pub_ = nh.advertise<ego_planner::DataDisp>("/planning/data_display", 100);
 
-  if (target_type_ == TARGET_TYPE::MANUAL_TARGET)  // 如果目标类型为手动目标
-    waypoint_sub_ = nh.subscribe("/waypoint_generator/waypoints", 1, &EGOReplanFSM::waypointCallback, this);
-  else if (target_type_ == TARGET_TYPE::PRESET_TARGET)  // 如果目标类型为预设目标
-  {
-    ros::Duration(1.0).sleep();  // 等待1秒
-    while (ros::ok() && !have_odom_)  // 在有里程计数据之前循环等待
-      ros::spinOnce();
-    planGlobalTrajbyGivenWps();  // 根据给定的路径点规划全局轨迹
-  }
-  else
-    cout << "Wrong target_type_ value! target_type_=" << target_type_ << endl;  // 如果目标类型错误，则输出错误信息
+
 }
 
 
