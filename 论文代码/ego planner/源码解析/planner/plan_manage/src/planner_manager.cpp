@@ -429,35 +429,93 @@ do
 
     return true;
   }
+//第一步生成全局参考轨迹
+// bool EGOPlannerManager::planGlobalTraj(const Eigen::Vector3d &start_pos, const Eigen::Vector3d &start_vel, const Eigen::Vector3d &start_acc,
+//                                        const Eigen::Vector3d &end_pos, const Eigen::Vector3d &end_vel, const Eigen::Vector3d &end_acc)
+// {
+//     // 生成全局参考轨迹
+//     vector<Eigen::Vector3d> points;
+//     points.push_back(start_pos); // 添加起始点
+//     points.push_back(end_pos);   // 添加终点
+
+//     // 如果两点间距离过远，则插入中间点
+//     vector<Eigen::Vector3d> inter_points;
+//     const double dist_thresh = 4.0; // 设定距离阈值
+
+//     for (size_t i = 0; i < points.size() - 1; ++i)
+//     {
+//         inter_points.push_back(points.at(i));
+//         double dist = (points.at(i + 1) - points.at(i)).norm(); // 计算两点间的距离
+
+//         // 如果距离超过阈值
+//         if (dist > dist_thresh)
+//         {
+//             int id_num = floor(dist / dist_thresh) + 1; // 计算需要插入的中间点数量
+
+//             // 插入中间点
+//             for (int j = 1; j < id_num; ++j)
+//             {
+//                 Eigen::Vector3d inter_pt =
+//                     points.at(i) * (1.0 - double(j) / id_num) + points.at(i + 1) * double(j) / id_num;
+//                 inter_points.push_back(inter_pt);
+//             }
+//         }
+//     }
+
+//     inter_points.push_back(points.back()); // 添加最后一个点
+
+//     // 构建位置矩阵
+//     int pt_num = inter_points.size();
+//     Eigen::MatrixXd pos(3, pt_num);
+//     for (int i = 0; i < pt_num; ++i)
+//         pos.col(i) = inter_points[i];
+
+//     Eigen::Vector3d zero(0, 0, 0);
+//     Eigen::VectorXd time(pt_num - 1);
+//     for (int i = 0; i < pt_num - 1; ++i)
+//     {
+//         time(i) = (pos.col(i + 1) - pos.col(i)).norm() / (pp_.max_vel_);
+//     }
+
+//     // 调整起始和结束时间
+//     time(0) *= 2.0;
+//     time(time.rows() - 1) *= 2.0;
+
+//     // 生成多项式轨迹
+//     PolynomialTraj gl_traj;
+//     if (pos.cols() >= 3)
+//         gl_traj = PolynomialTraj::minSnapTraj(pos, start_vel, end_vel, start_acc, end_acc, time);
+//     else if (pos.cols() == 2)
+//         gl_traj = PolynomialTraj::one_segment_traj_gen(start_pos, start_vel, start_acc, end_pos, end_vel, end_acc, time(0));
+//     else
+//         return false;
+
+//     auto time_now = ros::Time::now();
+//     global_data_.setGlobalTraj(gl_traj, time_now); // 设置全局轨迹
+
+//     return true; // 返回成功
+// }
 
 bool EGOPlannerManager::planGlobalTraj(const Eigen::Vector3d &start_pos, const Eigen::Vector3d &start_vel, const Eigen::Vector3d &start_acc,
                                        const Eigen::Vector3d &end_pos, const Eigen::Vector3d &end_vel, const Eigen::Vector3d &end_acc)
 {
-    // 生成全局参考轨迹
-    vector<Eigen::Vector3d> points;
-    points.push_back(start_pos); // 添加起始点
-    points.push_back(end_pos);   // 添加终点
-
-    // 如果两点间距离过远，则插入中间点
-    vector<Eigen::Vector3d> inter_points;
-    const double dist_thresh = 4.0; // 设定距离阈值
+    // 生成全局参考轨迹点
+    std::vector<Eigen::Vector3d> points{start_pos, end_pos};
+    std::vector<Eigen::Vector3d> inter_points;
+    const double dist_thresh = 4.0; // 距离阈值
 
     for (size_t i = 0; i < points.size() - 1; ++i)
     {
-        inter_points.push_back(points.at(i));
-        double dist = (points.at(i + 1) - points.at(i)).norm(); // 计算两点间的距离
+        inter_points.push_back(points[i]);
+        double dist = (points[i + 1] - points[i]).norm(); // 计算两点间的距离
 
-        // 如果距离超过阈值
+        // 如果距离超过阈值，插入中间点
         if (dist > dist_thresh)
         {
-            int id_num = floor(dist / dist_thresh) + 1; // 计算需要插入的中间点数量
-
-            // 插入中间点
+            int id_num = static_cast<int>(std::floor(dist / dist_thresh)) + 1; // 需要插入的中间点数量
             for (int j = 1; j < id_num; ++j)
             {
-                Eigen::Vector3d inter_pt =
-                    points.at(i) * (1.0 - double(j) / id_num) + points.at(i + 1) * double(j) / id_num;
-                inter_points.push_back(inter_pt);
+                inter_points.push_back(points[i] * (1.0 - double(j) / id_num) + points[i + 1] * double(j) / id_num);
             }
         }
     }
@@ -470,16 +528,15 @@ bool EGOPlannerManager::planGlobalTraj(const Eigen::Vector3d &start_pos, const E
     for (int i = 0; i < pt_num; ++i)
         pos.col(i) = inter_points[i];
 
-    Eigen::Vector3d zero(0, 0, 0);
     Eigen::VectorXd time(pt_num - 1);
     for (int i = 0; i < pt_num - 1; ++i)
     {
-        time(i) = (pos.col(i + 1) - pos.col(i)).norm() / (pp_.max_vel_);
+        time(i) = (pos.col(i + 1) - pos.col(i)).norm() / pp_.max_vel_;
     }
 
     // 调整起始和结束时间
     time(0) *= 2.0;
-    time(time.rows() - 1) *= 2.0;
+    time(time.size() - 1) *= 2.0;
 
     // 生成多项式轨迹
     PolynomialTraj gl_traj;
@@ -490,12 +547,10 @@ bool EGOPlannerManager::planGlobalTraj(const Eigen::Vector3d &start_pos, const E
     else
         return false;
 
-    auto time_now = ros::Time::now();
-    global_data_.setGlobalTraj(gl_traj, time_now); // 设置全局轨迹
+    global_data_.setGlobalTraj(gl_traj, ros::Time::now()); // 设置全局轨迹
 
-    return true; // 返回成功
+    return true;
 }
-
 
   bool EGOPlannerManager::refineTrajAlgo(UniformBspline &traj, vector<Eigen::Vector3d> &start_end_derivative, double ratio, double &ts, Eigen::MatrixXd &optimal_control_points)
   {
