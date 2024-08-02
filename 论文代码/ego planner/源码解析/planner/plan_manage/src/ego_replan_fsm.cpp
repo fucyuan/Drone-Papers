@@ -541,8 +541,6 @@ void EGOReplanFSM::getLocalTarget()
 {
   // 主要功能是计算局部目标点（local_target_pt_）和相应的速度（local_target_vel_）
 
-
-
     double t;
 
     // 计算时间步长

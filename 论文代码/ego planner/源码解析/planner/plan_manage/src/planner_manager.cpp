@@ -54,6 +54,7 @@ void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh, PlanningVisualizati
                                         Eigen::Vector3d local_target_vel, bool flag_polyInit, bool flag_randomPolyTraj)
   {
 
+    // 初始flag_polyInit为true；flag_randomPolyTra为false；
     static int count = 0;
     // 打印重规划计数和相关信息
     std::cout << endl
@@ -62,9 +63,10 @@ void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh, PlanningVisualizati
     cout << "start: " << start_pt.transpose() << ", " << start_vel.transpose() << "\ngoal:" << local_target_pt.transpose() << ", " << local_target_vel.transpose()
          << endl;
   // 如果起点和终点非常接近，则增加连续失败次数并返回false
+  //起点和给定的终点台接近
     if ((start_pt - local_target_pt).norm() < 0.2)
     {
-      cout << "Close to goal" << endl;
+      cout << "Close to local_target_pt goal" << endl;
       continous_failures_count_++;
       return false;
     }
