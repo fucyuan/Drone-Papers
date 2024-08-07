@@ -208,77 +208,83 @@ namespace ego_planner
 
   // void UniformBspline::recomputeInit() {}
 
-  void UniformBspline::parameterizeToBspline(const double &ts, const vector<Eigen::Vector3d> &point_set,
-                                             const vector<Eigen::Vector3d> &start_end_derivative,
-                                             Eigen::MatrixXd &ctrl_pts)
-  {
+void UniformBspline::parameterizeToBspline(const double &ts, const vector<Eigen::Vector3d> &point_set,
+                                           const vector<Eigen::Vector3d> &start_end_derivative,
+                                           Eigen::MatrixXd &ctrl_pts)
+{
+    // 判断时间步长是否大于0
     if (ts <= 0)
     {
-      cout << "[B-spline]:time step error." << endl;
-      return;
+        cout << "[B-spline]:time step error." << endl;
+        return;
     }
 
+    // 判断输入的点集是否足够多（至少要有4个点才能进行B样条曲线拟合）
     if (point_set.size() <= 3)
     {
-      cout << "[B-spline]:point set have only " << point_set.size() << " points." << endl;
-      return;
+        cout << "[B-spline]:point set have only " << point_set.size() << " points." << endl;
+        return;
     }
 
+    // 判断起始和终止导数的数量是否为4（分别对应起始速度、终止速度、起始加速度、终止加速度）
     if (start_end_derivative.size() != 4)
     {
-      cout << "[B-spline]:derivatives error." << endl;
+        cout << "[B-spline]:derivatives error." << endl;
     }
 
-    int K = point_set.size();
+    int K = point_set.size(); // K为点集的大小
 
-    // write A
+    // 构造系数矩阵A中所用的行向量（对应B样条的基函数）
     Eigen::Vector3d prow(3), vrow(3), arow(3);
-    prow << 1, 4, 1;
-    vrow << -1, 0, 1;
-    arow << 1, -2, 1;
+    prow << 1, 4, 1; // 用于位置方程
+    vrow << -1, 0, 1; // 用于速度方程
+    arow << 1, -2, 1; // 用于加速度方程
 
+    // 初始化系数矩阵A，A为一个(K+4)行，(K+2)列的矩阵
     Eigen::MatrixXd A = Eigen::MatrixXd::Zero(K + 4, K + 2);
 
+    // 填充位置方程部分（前K行，每行的第i至第i+2个元素）
     for (int i = 0; i < K; ++i)
-      A.block(i, i, 1, 3) = (1 / 6.0) * prow.transpose();
+        A.block(i, i, 1, 3) = (1 / 6.0) * prow.transpose();
 
+    // 填充速度边界条件（第K行和第K+1行，分别对应起始速度和终止速度）
     A.block(K, 0, 1, 3) = (1 / 2.0 / ts) * vrow.transpose();
     A.block(K + 1, K - 1, 1, 3) = (1 / 2.0 / ts) * vrow.transpose();
 
+    // 填充加速度边界条件（第K+2行和第K+3行，分别对应起始加速度和终止加速度）
     A.block(K + 2, 0, 1, 3) = (1 / ts / ts) * arow.transpose();
     A.block(K + 3, K - 1, 1, 3) = (1 / ts / ts) * arow.transpose();
 
-    //cout << "A" << endl << A << endl << endl;
-
-    // write b
+    // 初始化向量b，用于存储点集的x、y、z坐标以及导数边界条件
     Eigen::VectorXd bx(K + 4), by(K + 4), bz(K + 4);
     for (int i = 0; i < K; ++i)
     {
-      bx(i) = point_set[i](0);
-      by(i) = point_set[i](1);
-      bz(i) = point_set[i](2);
+        bx(i) = point_set ; // 填充点集的x坐标
+        by(i) = point_set ; // 填充点集的y坐标
+        bz(i) = point_set ; // 填充点集的z坐标
     }
 
     for (int i = 0; i < 4; ++i)
     {
-      bx(K + i) = start_end_derivative[i](0);
-      by(K + i) = start_end_derivative[i](1);
-      bz(K + i) = start_end_derivative[i](2);
+        bx(K + i) = start_end_derivative ; // 填充起始和终止导数的x分量
+        by(K + i) = start_end_derivative ; // 填充起始和终止导数的y分量
+        bz(K + i) = start_end_derivative ; // 填充起始和终止导数的z分量
     }
 
-    // solve Ax = b
+    // 求解线性方程组Ax = b，得到控制点的x、y、z坐标
     Eigen::VectorXd px = A.colPivHouseholderQr().solve(bx);
     Eigen::VectorXd py = A.colPivHouseholderQr().solve(by);
     Eigen::VectorXd pz = A.colPivHouseholderQr().solve(bz);
 
-    // convert to control pts
-    ctrl_pts.resize(3, K + 2);
-    ctrl_pts.row(0) = px.transpose();
-    ctrl_pts.row(1) = py.transpose();
-    ctrl_pts.row(2) = pz.transpose();
+    // 将求解得到的控制点坐标转化为矩阵形式
+    ctrl_pts.resize(3, K + 2); // 控制点矩阵的维度为3行（x, y, z），K+2列
+    ctrl_pts.row(0) = px.transpose(); // x坐标
+    ctrl_pts.row(1) = py.transpose(); // y坐标
+    ctrl_pts.row(2) = pz.transpose(); // z坐标
 
     // cout << "[B-spline]: parameterization ok." << endl;
-  }
+}
+
 
   double UniformBspline::getTimeSum()
   {

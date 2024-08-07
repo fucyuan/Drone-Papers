@@ -63,9 +63,10 @@ void EGOPlannerManager::initPlanModules(ros::NodeHandle &nh, PlanningVisualizati
     cout << "start: " << start_pt.transpose() << ", " << start_vel.transpose() << "\ngoal:" << local_target_pt.transpose() << ", " << local_target_vel.transpose()
          << endl;
   // 如果起点和终点非常接近，则增加连续失败次数并返回false
-  //起点和给定的终点台接近
+  //起点和给定的局部终点台接近
     if ((start_pt - local_target_pt).norm() < 0.2)
     {
+      cout << "起点和给定的局部终点台接近" << endl;
       cout << "Close to local_target_pt goal" << endl;
       continous_failures_count_++;
       return false;
@@ -185,83 +186,90 @@ do
       start_end_derivatives.push_back(gl_traj.evaluateAcc(t)); // 终点的加速度
 
       }
-      else // Initial path generated from previous trajectory.
-      {
+   else // Initial path generated from previous trajectory. 如果路径是由上一次的轨迹生成
+{
+    double t;
+    double t_cur = (ros::Time::now() - local_data_.start_time_).toSec(); // 获取当前时间距离轨迹起始时间的秒数
 
-        double t;
-        double t_cur = (ros::Time::now() - local_data_.start_time_).toSec();
+    vector<double> pseudo_arc_length; // 伪弧长向量
+    vector<Eigen::Vector3d> segment_point; // 分段点向量
+    pseudo_arc_length.push_back(0.0); // 将0.0（起点）推入伪弧长向量
 
-        vector<double> pseudo_arc_length;
-        vector<Eigen::Vector3d> segment_point;
-        pseudo_arc_length.push_back(0.0);
-        for (t = t_cur; t < local_data_.duration_ + 1e-3; t += ts)
+    for (t = t_cur; t < local_data_.duration_ + 1e-3; t += ts) // 循环遍历时间段，步长为ts
+    {
+        segment_point.push_back(local_data_.position_traj_.evaluateDeBoorT(t)); // 计算并推入当前时间点的轨迹位置
+        if (t > t_cur)
         {
-          segment_point.push_back(local_data_.position_traj_.evaluateDeBoorT(t));
-          if (t > t_cur)
-          {
+            // 计算当前点与前一点的距离，并累加到伪弧长向量中
             pseudo_arc_length.push_back((segment_point.back() - segment_point[segment_point.size() - 2]).norm() + pseudo_arc_length.back());
-          }
         }
-        t -= ts;
+    }
+    t -= ts; // 将时间回退一个步长
 
-        double poly_time = (local_data_.position_traj_.evaluateDeBoorT(t) - local_target_pt).norm() / pp_.max_vel_ * 2;
-        if (poly_time > ts)
+    // 计算从当前轨迹点到目标点所需的时间，考虑最大速度
+    double poly_time = (local_data_.position_traj_.evaluateDeBoorT(t) - local_target_pt).norm() / pp_.max_vel_ * 2;
+    if (poly_time > ts)
+    {
+        // 生成从当前轨迹点到目标点的多项式轨迹
+        PolynomialTraj gl_traj = PolynomialTraj::one_segment_traj_gen(local_data_.position_traj_.evaluateDeBoorT(t),
+                                                                      local_data_.velocity_traj_.evaluateDeBoorT(t),
+                                                                      local_data_.acceleration_traj_.evaluateDeBoorT(t),
+                                                                      local_target_pt, local_target_vel, Eigen::Vector3d::Zero(), poly_time);
+
+        for (t = ts; t < poly_time; t += ts)
         {
-          PolynomialTraj gl_traj = PolynomialTraj::one_segment_traj_gen(local_data_.position_traj_.evaluateDeBoorT(t),
-                                                                        local_data_.velocity_traj_.evaluateDeBoorT(t),
-                                                                        local_data_.acceleration_traj_.evaluateDeBoorT(t),
-                                                                        local_target_pt, local_target_vel, Eigen::Vector3d::Zero(), poly_time);
-
-          for (t = ts; t < poly_time; t += ts)
-          {
             if (!pseudo_arc_length.empty())
             {
-              segment_point.push_back(gl_traj.evaluate(t));
-              pseudo_arc_length.push_back((segment_point.back() - segment_point[segment_point.size() - 2]).norm() + pseudo_arc_length.back());
+                // 计算多项式轨迹的下一段并将其推入segment_point向量中，同时更新伪弧长
+                segment_point.push_back(gl_traj.evaluate(t));
+                pseudo_arc_length.push_back((segment_point.back() - segment_point[segment_point.size() - 2]).norm() + pseudo_arc_length.back());
             }
             else
             {
-              ROS_ERROR("pseudo_arc_length is empty, return!");
-              continous_failures_count_++;
-              return false;
+                ROS_ERROR("pseudo_arc_length is empty, return!"); // 错误处理：如果伪弧长向量为空，返回错误
+                continous_failures_count_++; // 连续失败计数器加一
+                return false;
             }
-          }
         }
+    }
 
-        double sample_length = 0;
-        double cps_dist = pp_.ctrl_pt_dist * 1.5; // cps_dist will be divided by 1.5 in the next
-        size_t id = 0;
-        do
+    double sample_length = 0; // 采样长度初始化为0
+    double cps_dist = pp_.ctrl_pt_dist * 1.5; // 控制点距离乘以1.5
+    size_t id = 0;
+
+    do
+    {
+        cps_dist /= 1.5; // 控制点距离每次循环除以1.5
+        point_set.clear(); // 清空点集
+        sample_length = 0;
+        id = 0;
+        while ((id <= pseudo_arc_length.size() - 2) && sample_length <= pseudo_arc_length.back())
         {
-          cps_dist /= 1.5;
-          point_set.clear();
-          sample_length = 0;
-          id = 0;
-          while ((id <= pseudo_arc_length.size() - 2) && sample_length <= pseudo_arc_length.back())
-          {
             if (sample_length >= pseudo_arc_length[id] && sample_length < pseudo_arc_length[id + 1])
             {
-              point_set.push_back((sample_length - pseudo_arc_length[id]) / (pseudo_arc_length[id + 1] - pseudo_arc_length[id]) * segment_point[id + 1] +
-                                  (pseudo_arc_length[id + 1] - sample_length) / (pseudo_arc_length[id + 1] - pseudo_arc_length[id]) * segment_point[id]);
-              sample_length += cps_dist;
+                // 根据采样长度插值计算当前控制点的位置并推入点集
+                point_set.push_back((sample_length - pseudo_arc_length[id]) / (pseudo_arc_length[id + 1] - pseudo_arc_length[id]) * segment_point[id + 1] +
+                                    (pseudo_arc_length[id + 1] - sample_length) / (pseudo_arc_length[id + 1] - pseudo_arc_length[id]) * segment_point[id]);
+                sample_length += cps_dist; // 增加采样长度
             }
             else
-              id++;
-          }
-          point_set.push_back(local_target_pt);
-        } while (point_set.size() < 7); // If the start point is very close to end point, this will help
-
-        start_end_derivatives.push_back(local_data_.velocity_traj_.evaluateDeBoorT(t_cur));
-        start_end_derivatives.push_back(local_target_vel);
-        start_end_derivatives.push_back(local_data_.acceleration_traj_.evaluateDeBoorT(t_cur));
-        start_end_derivatives.push_back(Eigen::Vector3d::Zero());
-
-        if (point_set.size() > pp_.planning_horizen_ / pp_.ctrl_pt_dist * 3) // The initial path is unnormally too long!
-        {
-          flag_force_polynomial = true;
-          flag_regenerate = true;
+                id++;
         }
-      }
+        point_set.push_back(local_target_pt); // 将目标点加入点集
+    } while (point_set.size() < 7); // 如果点集大小小于7，继续减少控制点距离并重新采样
+
+    start_end_derivatives.push_back(local_data_.velocity_traj_.evaluateDeBoorT(t_cur)); // 起始速度导数
+    start_end_derivatives.push_back(local_target_vel); // 目标速度导数
+    start_end_derivatives.push_back(local_data_.acceleration_traj_.evaluateDeBoorT(t_cur)); // 起始加速度导数
+    start_end_derivatives.push_back(Eigen::Vector3d::Zero()); // 终止加速度导数为零
+
+    if (point_set.size() > pp_.planning_horizen_ / pp_.ctrl_pt_dist * 3) // 如果初始路径长度异常
+    {
+        flag_force_polynomial = true; // 强制多项式标志设为真
+        flag_regenerate = true; // 重新生成标志设为真
+    }
+}
+
     } while (flag_regenerate);
 
           // 参数化为B-spline轨迹
