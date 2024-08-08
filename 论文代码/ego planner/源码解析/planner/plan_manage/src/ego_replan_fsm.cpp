@@ -451,11 +451,13 @@ std::pair<int, EGOReplanFSM::FSM_EXEC_STATE> EGOReplanFSM::timesOfConsecutiveSta
   bool EGOReplanFSM::callReboundReplan(bool flag_use_poly_init, bool flag_randomPolyTraj)
 {
     getLocalTarget();  // 获取局部目标点
+
     cout<<"局部目标点"<<endl;
 
     // 执行重规划，并返回规划是否成功的布尔值
+    //重规划，主要是起点到局部的目标点，做局部规划
     bool plan_success = planner_manager_->reboundReplan(start_pt_, start_vel_, start_acc_, local_target_pt_, local_target_vel_, (have_new_target_ || flag_use_poly_init), flag_randomPolyTraj);
-   //这里没有找到 have_new_target_ 的初始化
+    
    
    
     have_new_target_ = false;  // 重置新目标标志
