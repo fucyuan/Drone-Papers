@@ -224,7 +224,7 @@ void UniformBspline::parameterizeToBspline(const double &ts, const vector<Eigen:
     {
         cout << "[B-spline]:point set have only " << point_set.size() << " points." << endl;
         return;
-    }
+    }                            
 
     // 判断起始和终止导数的数量是否为4（分别对应起始速度、终止速度、起始加速度、终止加速度）
     if (start_end_derivative.size() != 4)
